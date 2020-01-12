@@ -83,11 +83,34 @@ app.post('/register', async (req, res) => {
     } catch (e) {}
 });
 
+app.get('/recommendations', async (req, res) => {
+    const client = new MongoClient(process.env.MONGO_URL, { useUnifiedTopology: true });
+    const uid = parseInt(req.query.uid) || req.user.uid;
+    try {
+        let sres = "";
+        await client.connect();
+        const conns = client.db(DB).collection('connections');
+        const infos = client.db(DB).collection('user_info');
+        const userConn = await conns.findOne({uid: uid});
+        const feedUsers = await infos.find({ uid: { $in: userConn.feed } }).toArray();
+        const newUsers = await infos.find({ uid: { $in: userConn.new } }).toArray();
+        if (userConn.new.length > 0) {
+            // get new feed of feed + new
+            sres += JSON.stringify(feedUsers) + '\n';
+            sres += JSON.stringify(newUsers) + '\n';
+        }
+        await client.close();
+        res.send(sres);
+    } catch (e) {
+        console.error(e);
+    }
+});
+
 app.get('/find', async (req, res) => {
     const client = new MongoClient(process.env.MONGO_URL, { useUnifiedTopology: true });
     try {
         await client.connect();
-        let sres = JSON.stringify(await client.db(DB).collection('user_info').find({}).toArray()) + '\n';
+        let sres = JSON.stringify(await client.db(DB).collection('user_info').find({}).project({_id:0, uid:1}).toArray()) + '\n';
         sres += JSON.stringify(await client.db(DB).collection('connections').find({}).toArray()) + '\n';
         await client.close();
         res.send(sres);

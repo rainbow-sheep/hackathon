@@ -129,7 +129,7 @@ app.get('/recommendations', async (req, res) => {
             await users.updateOne({uid: uid}, { $set: { 'connections.new': [] }});
             await users.updateOne({uid: uid}, { $set: { 'connections.feed': newFeed.map(fu => fu.uid) }});
         }
-        let sres = JSON.stringify(feedUsers.map(fu => ({uid: fu.uid, about: fu.about, info: fu.info})));
+        let sres = JSON.stringify(feedUsers.map(fu => ({uid: fu.uid, about: fu.about, info: fu.info, stories: fu.stories})));
         res.send(sres);
     });
 });

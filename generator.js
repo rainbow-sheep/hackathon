@@ -17,8 +17,11 @@ async function main() {
         let sent = Sentencer.make('I am ' + name + ' and I love to work on {{ adjective }} {{ nouns }} and am interested in {{ adjective }} {{ nouns }}.');
         let info = new Array(34);
         for (let a = 0; a < 34; a++) {
-            if (a >= 4) info[a] = Math.random() * 0.6 + 0.2;
-            else info[a] = 0;
+            info[a] = 0;
+        }
+        for (let e = 0; e < 3; e++) {
+            info[Math.floor(Math.random() * 19 + 4)] = Math.random() * 0.6 + 0.2;
+            info[Math.floor(Math.random() * 15 + 19)] = Math.random() * 0.6 + 0.2;
         }
         admin.auth().createUser({
             displayName: name,

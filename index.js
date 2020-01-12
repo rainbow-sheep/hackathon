@@ -7,13 +7,18 @@ admin.auth().listUsers().then(res => {
 });
 
 const { MongoClient } = require('mongodb');
-const DB = 'palup-test';
-const mongo = new MongoClient(process.env.MONGO_URL, { useUnifiedTopology: true });
-mongo.connect(function(err) {
-    //assert.equal(null, err);
-    console.log("Connected successfully to server");
-    mongo.close();
-});
+const MONGO_DB = 'palup-test';
+const MONGO_COLLECTION = 'users';
+const openMongo = async function(dbcallback) {
+    const client = new MongoClient(process.env.MONGO_URL, { useUnifiedTopology: true });
+    try {
+        await client.connect();
+        await dbcallback(client.db(MONGO_DB).collection(MONGO_COLLECTION));
+        await client.close();
+    } catch (e) {
+        console.error(e);
+    }
+};
 
 const express = require('express');
 //const cookieParser = require('cookie-parser')();
@@ -61,72 +66,57 @@ app.get('/', (req, res) => res.send('Hello world!'));
 app.use(express.json());
 
 app.post('/register', async (req, res) => {
-    const client = new MongoClient(process.env.MONGO_URL, { useUnifiedTopology: true });
     const uid = Math.floor(Math.random() * 10000);//req.body.userInfo.uid || req.user.uid;
-    try {
-        await client.connect();
-        const db = client.db(DB);
-        await db.collection('connections').updateMany({}, { $push : { new : uid }})
-        const others = (await db.collection('user_info').find({}).project({ _id: 0, uid: 1 }).toArray()).map(d => d.uid);
-        req.body.userInfo.uid = uid;
-        await db.collection('user_info').insertOne(req.body.userInfo);
-        await db.collection('connections').insertOne({
+    openMongo(async users => {
+        await users.updateMany({}, { $push : { 'connections.new': uid }});
+        const others = (await users.find().project({ _id: 0, uid: 1 }).toArray()).map(d => d.uid);
+        const newUser = {
             uid: uid,
-            new: others,
-            feed: [],
-            interest: [],
-            match: [],
-            trash: []
-        });
-        await client.close();
+            info: req.body.info,
+            about: req.body.about,
+            connections: {
+                new: others,
+                feed: [], saved: [], match: [], trash: []
+            }
+        };
+        await users.insertOne(newUser);
         res.send('OK');
-    } catch (e) {}
+    });
 });
 
 app.get('/recommendations', async (req, res) => {
-    const client = new MongoClient(process.env.MONGO_URL, { useUnifiedTopology: true });
     const uid = parseInt(req.query.uid) || req.user.uid;
-    try {
-        let sres = "";
-        await client.connect();
-        const conns = client.db(DB).collection('connections');
-        const infos = client.db(DB).collection('user_info');
-        const userConn = await conns.findOne({uid: uid});
-        const feedUsers = await infos.find({ uid: { $in: userConn.feed } }).toArray();
-        const newUsers = await infos.find({ uid: { $in: userConn.new } }).toArray();
-        if (userConn.new.length > 0) {
-            // get new feed of feed + new
-            sres += JSON.stringify(feedUsers) + '\n';
-            sres += JSON.stringify(newUsers) + '\n';
+    openMongo(async users => {
+        let u = await users.findOne({uid: uid});
+        let feedUsers = await users.find({ uid: { $in: u.connections.feed } }).toArray();
+        if (u.connections.new.length > 0) {
+            //request ai api
+            const newUsers = await users.find({ uid: { $in: u.connections.new } }).toArray();
+            feedUsers = feedUsers.concat(newUsers);
+            await users.updateOne({uid: uid}, { $set: { 'connections.new': [] }});
+            await users.updateOne({uid: uid}, { $set: { 'connections.feed': u.connections.feed.concat(u.connections.new) }});
         }
-        await client.close();
+        let sres = JSON.stringify(feedUsers.map(fu => ({about: fu.about, info: fu.info})));
         res.send(sres);
-    } catch (e) {
-        console.error(e);
-    }
+    });
 });
 
 app.get('/find', async (req, res) => {
-    const client = new MongoClient(process.env.MONGO_URL, { useUnifiedTopology: true });
-    try {
-        await client.connect();
-        let sres = JSON.stringify(await client.db(DB).collection('user_info').find({}).project({_id:0, uid:1}).toArray()) + '\n';
-        sres += JSON.stringify(await client.db(DB).collection('connections').find({}).toArray()) + '\n';
-        await client.close();
+    openMongo(async users => {
+        const us = await users.find({}).toArray();
+        let sres = '';
+        for (let u of us) {
+            sres += JSON.stringify(u) + '\n';
+        }
         res.send(sres);
-    } catch (e) {}
+    });
 });
 
 app.get('/clear', async (req, res) => {
-    const client = new MongoClient(process.env.MONGO_URL, { useUnifiedTopology: true });
-    try {
-        await client.connect();
-        await client.db(DB).collection('user_info').drop();
-        await client.db(DB).collection('connections').drop();
-        //await client.db(DB).collection('user_info').find({}).toArray().then(async arry => {
-        await client.close();
+    openMongo(users => {
+        users.drop();
         res.send('OK');
-    } catch (e) {}
+    });
 });
 
 app.use(validateFirebaseIdToken);

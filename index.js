@@ -26,7 +26,7 @@ const cors = require('cors')({ origin: true });
 const app = express();
 
 const axios = require('axios');
-const AI_URL = 'http://localhost:9000/test';
+const AI_URL = 'http://34.69.9.37:5000/cnnapi';
 
 // when decoded successfully, the ID Token content will be added as `req.user`.
 const validateFirebaseIdToken = async (req, res, next) => {
@@ -40,9 +40,12 @@ const validateFirebaseIdToken = async (req, res, next) => {
         console.log('Found "__session" cookie');
         // Read the ID Token from cookie.
         idToken = req.cookies.__session;
-    } else if (req.body && req.body.userToken) {
+    } else if (req.body && req.body.token) {
         console.log("found userToken in POST data");
         idToken = req.body.userToken;
+    } else if (req.query.token) {
+        console.log('found token in query str!');
+        idToken = req.query.token;
     } else {
         res.status(403).send('Unauthorized');
         return;
@@ -78,7 +81,8 @@ app.post('/test', (req, res) => {
 });
 
 app.post('/register', async (req, res) => {
-    const uid = Math.floor(Math.random() * 10000);//req.body.userInfo.uid || req.user.uid;
+    const uid = req.body.uid || Math.floor(Math.random() * 10000);
+    if (req.user) uid = req.user.uid;
     openMongo(async users => {
         await users.updateMany({}, { $push : { 'connections.new': uid }});
         const others = (await users.find().project({ _id: 0, uid: 1 }).toArray()).map(d => d.uid);

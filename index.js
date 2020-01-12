@@ -32,8 +32,8 @@ const validateFirebaseIdToken = async (req, res, next) => {
     console.log('Check if request is authorized with Firebase ID token');
     req.user = {uid: Math.floor(Math.random() * 10000)};
     if (req.query && req.query.uid) {
+        if (!isNaN(req.query.uid)) req.query.uid = parseInt(req.query.uid);
         req.user.uid = req.query.uid;
-        if (!isNaN(req.query.uid)) req.user.uid = parseInt(req.query.uid);
     }
     let idToken;
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
@@ -77,6 +77,7 @@ app.get('/', (req, res) => res.send('Hello world!'));
 
 //app.use(cookieParser);
 app.use(express.json());
+
 app.use(validateFirebaseIdToken);
 
 app.post('/test', (req, res) => {
@@ -180,12 +181,22 @@ app.post('/story', async (req, res) => {
 });
 
 app.get('/stories', async (req, res) => {
-    const uid = req.user.uid;
+    const uid = req.query.uid;
     openMongo(async users => {
         const u = await users.findOne({uid: uid});
         res.send(JSON.stringify(u.stories));
     });
-})
+});
+
+app.post('/delete_story', async (req, res) => {
+    const uid = req.user.uid;
+    const i = req.body.index;
+    openMongo(async users => {
+        await users.updateOne({uid: uid}, { $unset: {['stories.'+i]: null}});
+        await users.updateOne({uid: uid}, { $pull: {stories: null}});
+        res.send('OK');
+    });
+});
 
 app.get('/find', async (req, res) => {
     openMongo(async users => {

@@ -43,8 +43,8 @@ const validateFirebaseIdToken = async (req, res, next) => {
         // Read the ID Token from cookie.
         idToken = req.cookies.__session;
     } else if (req.body && req.body.token) {
-        console.log("found userToken in POST data");
-        idToken = req.body.userToken;
+        console.log('found Token in POST data');
+        idToken = req.body.token;
     } else if (req.query && req.query.token) {
         console.log('found token in query str!');
         idToken = req.query.token;
@@ -95,6 +95,7 @@ app.post('/register', async (req, res) => {
             uid: uid,
             info: req.body.info,
             about: req.body.about,
+            stories: [],
             connections: {
                 new: others,
                 feed: [], saved: [], match: [], trash: []
@@ -167,6 +168,22 @@ app.get('/matches', async (req, res) => {
         res.send(JSON.stringify(matches.map(fu => ({uid: fu.uid, about: fu.about, info: fu.info}))));
     });
 });
+
+app.post('/story', async (req, res) => {
+    const uid = req.user.uid;
+    openMongo(async users => {
+        await users.updateOne({uid: uid}, { $push: {stories: req.body.story}});
+        res.send('OK');
+    });
+});
+
+app.get('/stories', async (req, res) => {
+    const uid = req.user.uid;
+    openMongo(async users => {
+        const u = await users.findOne({uid: uid});
+        res.send(JSON.stringify(u.stories));
+    });
+})
 
 app.get('/find', async (req, res) => {
     openMongo(async users => {

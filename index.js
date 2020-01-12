@@ -7,13 +7,12 @@ admin.auth().listUsers().then(res => {
 });
 
 const { MongoClient } = require('mongodb');
-const MONGO_DB = 'palup-test';
 const MONGO_COLLECTION = 'users';
 const openMongo = async function(dbcallback) {
     const client = new MongoClient(process.env.MONGO_URL, { useUnifiedTopology: true });
     try {
         await client.connect();
-        await dbcallback(client.db(MONGO_DB).collection(MONGO_COLLECTION));
+        await dbcallback(client.db(process.env.MONGO_DB).collection(MONGO_COLLECTION));
         await client.close();
     } catch (e) {
         console.error(e);
@@ -32,7 +31,10 @@ const AI_URL = 'http://34.69.9.37:5000/cnnapi';
 const validateFirebaseIdToken = async (req, res, next) => {
     console.log('Check if request is authorized with Firebase ID token');
     req.user = {uid: Math.floor(Math.random() * 10000)};
-    if (req.query && req.query.uid) req.user.uid = parseInt(req.query.uid);
+    if (req.query && req.query.uid) {
+        req.user.uid = req.query.uid;
+        if (!isNaN(req.query.uid)) req.user.uid = parseInt(req.query.uid);
+    }
     let idToken;
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
         console.log('Found "Authorization" header');

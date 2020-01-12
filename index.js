@@ -31,6 +31,8 @@ const AI_URL = 'http://34.69.9.37:5000/cnnapi';
 // when decoded successfully, the ID Token content will be added as `req.user`.
 const validateFirebaseIdToken = async (req, res, next) => {
     console.log('Check if request is authorized with Firebase ID token');
+    req.user = {uid: Math.floor(Math.random() * 10000)};
+    if (req.query && req.query.uid) req.user.uid = parseInt(req.query.uid);
     let idToken;
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
         console.log('Found "Authorization" header');
@@ -43,11 +45,13 @@ const validateFirebaseIdToken = async (req, res, next) => {
     } else if (req.body && req.body.token) {
         console.log("found userToken in POST data");
         idToken = req.body.userToken;
-    } else if (req.query.token) {
+    } else if (req.query && req.query.token) {
         console.log('found token in query str!');
         idToken = req.query.token;
     } else {
-        res.status(403).send('Unauthorized');
+        console.log('AUTH failed');
+        //res.status(403).send('Unauthorized');
+        next();
         return;
     }
 
@@ -59,7 +63,8 @@ const validateFirebaseIdToken = async (req, res, next) => {
         return;
     } catch (error) {
         console.error('Error while verifying Firebase ID token:', error);
-        res.status(403).send('Unauthorized');
+        //res.status(403).send('Unauthorized');
+        next();
         return;
     }
 };
@@ -70,6 +75,7 @@ app.get('/', (req, res) => res.send('Hello world!'));
 
 //app.use(cookieParser);
 app.use(express.json());
+app.use(validateFirebaseIdToken);
 
 app.post('/test', (req, res) => {
     console.log(req.body);
@@ -81,8 +87,7 @@ app.post('/test', (req, res) => {
 });
 
 app.post('/register', async (req, res) => {
-    const uid = req.body.uid || Math.floor(Math.random() * 10000);
-    if (req.user) uid = req.user.uid;
+    const uid = req.user.uid;
     openMongo(async users => {
         await users.updateMany({}, { $push : { 'connections.new': uid }});
         const others = (await users.find().project({ _id: 0, uid: 1 }).toArray()).map(d => d.uid);
@@ -101,7 +106,7 @@ app.post('/register', async (req, res) => {
 });
 
 app.get('/recommendations', async (req, res) => {
-    const uid = parseInt(req.query.uid) || req.user.uid;
+    const uid = req.user.uid;
     openMongo(async users => {
         let u = await users.findOne({uid: uid});
         let feedUsers = [];
@@ -126,7 +131,7 @@ app.get('/recommendations', async (req, res) => {
 });
 
 app.get('/save', async (req, res) => {
-    const uid = parseInt(req.query.uid) || req.user.uid;
+    const uid = req.user.uid;
     openMongo(async users => {
         let u = await users.findOne({uid: uid});
         const ouid = u.connections.feed.shift();
@@ -144,7 +149,7 @@ app.get('/save', async (req, res) => {
 });
 
 app.get('/dismiss', async (req, res) => {
-    const uid = parseInt(req.query.uid) || req.user.uid;
+    const uid = req.user.uid;
     openMongo(async users => {
         let u = await users.findOne({uid: uid});
         const ouid = u.connections.feed.shift();
@@ -155,7 +160,7 @@ app.get('/dismiss', async (req, res) => {
 });
 
 app.get('/matches', async (req, res) => {
-    const uid = parseInt(req.query.uid) || req.user.uid;
+    const uid = req.user.uid;
     openMongo(async users => {
         let u = await users.findOne({uid: uid});
         const matches = await users.find({uid: { $in: u.connections.match}}).toArray();
@@ -180,8 +185,6 @@ app.get('/clear', async (req, res) => {
         res.send('OK');
     });
 });
-
-app.use(validateFirebaseIdToken);
 
 app.get('/hello', (req, res) => {
     res.send(`Hello ${req.user.name}`);

@@ -168,7 +168,15 @@ app.get('/matches', async (req, res) => {
     openMongo(async users => {
         let u = await users.findOne({uid: uid});
         const matches = await users.find({uid: { $in: u.connections.match}}).toArray();
-        res.send(JSON.stringify(matches.map(fu => ({uid: fu.uid, about: fu.about, info: fu.info}))));
+        res.send(JSON.stringify(matches.map(fu => ({uid: fu.uid, about: fu.about, info: fu.info, stories: fu.stories}))));
+    });
+});
+
+app.get('/self', async (req, res) => {
+    const uid = req.user.uid;
+    openMongo(async users => {
+        const fu = await users.findOne({uid: uid});
+        res.send(JSON.stringify({uid: fu.uid, about: fu.about, info: fu.info, stories: fu.stories}));
     });
 });
 

@@ -2,9 +2,11 @@
 
 const admin = require('firebase-admin');
 admin.initializeApp();
+/*
 admin.auth().listUsers().then(res => {
     for (let u of res.users) console.log(u.email);
 });
+*/
 
 const { MongoClient } = require('mongodb');
 const MONGO_COLLECTION = 'users';

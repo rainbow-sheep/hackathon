@@ -25,6 +25,9 @@ const express = require('express');
 const cors = require('cors')({ origin: true });
 const app = express();
 
+const axios = require('axios');
+const AI_URL = 'http://localhost:9000/test';
+
 // when decoded successfully, the ID Token content will be added as `req.user`.
 const validateFirebaseIdToken = async (req, res, next) => {
     console.log('Check if request is authorized with Firebase ID token');
@@ -65,6 +68,15 @@ app.get('/', (req, res) => res.send('Hello world!'));
 //app.use(cookieParser);
 app.use(express.json());
 
+app.post('/test', (req, res) => {
+    console.log(req.body);
+    let shuffled = [];
+    for (let i = req.body.o.length - 1; i >= 0; i--) {
+        shuffled.push(i);
+    }
+    res.send(JSON.stringify(shuffled));
+});
+
 app.post('/register', async (req, res) => {
     const uid = Math.floor(Math.random() * 10000);//req.body.userInfo.uid || req.user.uid;
     openMongo(async users => {
@@ -88,16 +100,62 @@ app.get('/recommendations', async (req, res) => {
     const uid = parseInt(req.query.uid) || req.user.uid;
     openMongo(async users => {
         let u = await users.findOne({uid: uid});
-        let feedUsers = await users.find({ uid: { $in: u.connections.feed } }).toArray();
+        let feedUsers = [];
+        for (let ouid of u.connections.feed) {
+            feedUsers.push(await users.findOne({ uid: ouid }));
+        }
         if (u.connections.new.length > 0) {
-            //request ai api
             const newUsers = await users.find({ uid: { $in: u.connections.new } }).toArray();
             feedUsers = feedUsers.concat(newUsers);
+            const order = (await axios.post(AI_URL, {u: u.info, o: feedUsers.map(fu => fu.info)})).data;
+            const newFeed = [];
+            for (let o of order) {
+                newFeed.push(feedUsers[o]);
+            }
+            feedUsers = newFeed;
             await users.updateOne({uid: uid}, { $set: { 'connections.new': [] }});
-            await users.updateOne({uid: uid}, { $set: { 'connections.feed': u.connections.feed.concat(u.connections.new) }});
+            await users.updateOne({uid: uid}, { $set: { 'connections.feed': newFeed.map(fu => fu.uid) }});
         }
-        let sres = JSON.stringify(feedUsers.map(fu => ({about: fu.about, info: fu.info})));
+        let sres = JSON.stringify(feedUsers.map(fu => ({uid: fu.uid, about: fu.about, info: fu.info})));
         res.send(sres);
+    });
+});
+
+app.get('/save', async (req, res) => {
+    const uid = parseInt(req.query.uid) || req.user.uid;
+    openMongo(async users => {
+        let u = await users.findOne({uid: uid});
+        const ouid = u.connections.feed.shift();
+        await users.updateOne({uid: uid}, { $set: { 'connections.feed': u.connections.feed }});
+        let o = await users.findOne({uid: ouid});
+        if (o.connections.saved.indexOf(uid) > -1) {
+            await users.updateOne({uid: ouid}, { $set: { 'connections.saved': o.connections.saved.filter(su => su != uid)}});
+            await users.updateOne({uid: uid}, { $push: {'connections.match': ouid}});
+            await users.updateOne({uid: ouid}, { $push: {'connections.match': uid}});
+        } else {
+            await users.updateOne({uid: uid}, { $push: {'connections.saved': ouid}});
+        }
+        res.send('OK');
+    });
+});
+
+app.get('/dismiss', async (req, res) => {
+    const uid = parseInt(req.query.uid) || req.user.uid;
+    openMongo(async users => {
+        let u = await users.findOne({uid: uid});
+        const ouid = u.connections.feed.shift();
+        await users.updateOne({uid: uid}, { $set: { 'connections.feed': u.connections.feed }});
+        await users.updateOne({uid: uid}, { $push: { 'connections.trash': ouid }});
+        res.send('OK');
+    });
+});
+
+app.get('/matches', async (req, res) => {
+    const uid = parseInt(req.query.uid) || req.user.uid;
+    openMongo(async users => {
+        let u = await users.findOne({uid: uid});
+        const matches = await users.find({uid: { $in: u.connections.match}}).toArray();
+        res.send(JSON.stringify(matches.map(fu => ({uid: fu.uid, about: fu.about, info: fu.info}))));
     });
 });
 

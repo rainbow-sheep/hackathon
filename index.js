@@ -2,15 +2,16 @@
 
 require("dotenv").config();
 const admin = require("firebase-admin");
-admin.initializeApp();
-/*
-admin.auth().listUsers().then(res => {
-    for (let u of res.users) console.log(u.email);
-});
-*/
-
 const { MongoClient } = require("mongodb");
-const MONGO_COLLECTION = "users";
+const axios = require("axios");
+const cors = require("cors")({ origin: true });
+const express = require("express");
+const app = express();
+const AI_URL = process.env.AI_URL;
+app.use(cors);
+app.use(express.json());
+app.use(validateFirebaseIdToken);
+
 const openMongo = async function (dbcallback) {
   const client = new MongoClient(process.env.MONGO_URL, {
     useUnifiedTopology: true,
@@ -18,22 +19,13 @@ const openMongo = async function (dbcallback) {
   try {
     await client.connect();
     await dbcallback(
-      client.db(process.env.MONGO_DB).collection(MONGO_COLLECTION)
+      client.db(process.env.MONGO_DB).collection(process.env.MONGO_COLLECTION)
     );
     await client.close();
   } catch (e) {
     console.error(e);
   }
 };
-
-const express = require("express");
-//const cookieParser = require('cookie-parser')();
-const cors = require("cors")({ origin: true });
-const app = express();
-
-const axios = require("axios");
-const AI_URL = "http://34.69.9.37:5000/cnnapi";
-
 // when decoded successfully, the ID Token content will be added as `req.user`.
 const validateFirebaseIdToken = async (req, res, next) => {
   console.log("Check if request is authorized with Firebase ID token");
@@ -80,16 +72,7 @@ const validateFirebaseIdToken = async (req, res, next) => {
     return;
   }
 };
-
-app.use(cors);
-
 app.get("/", (req, res) => res.send("Hello world!"));
-
-//app.use(cookieParser);
-app.use(express.json());
-
-app.use(validateFirebaseIdToken);
-
 app.post("/test", (req, res) => {
   console.log(req.body);
   let shuffled = [];
@@ -307,5 +290,12 @@ app.post("/body", (req, res) => {
   res.send(JSON.stringify(req.body));
 });
 
-console.log("app running on 9000");
+console.log("app running on port :9000");
+admin.initializeApp();
+/*
+admin.auth().listUsers().then(res => {
+    for (let u of res.users) console.log(u.email);
+});
+*/
+
 app.listen(9000);

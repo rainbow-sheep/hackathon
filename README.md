@@ -24,6 +24,17 @@ Finally, Look at the .env.sample for an example config.
 
 ## Actual Deployment
 
+idk
+
+## Generate fake users
+
+node genfake/generator.js
+node genfake/stories.js
+
+## Clear DB
+
+node dropall.js
+
 ## Test DB
 
 run node tests/testsdb.js to see if db is working properly. if not, make sure the .env is correct.

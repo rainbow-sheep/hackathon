@@ -243,8 +243,9 @@ app.post("/story", async (req, res) => {
   const uid = req.user.uid;
   openMongo(async (users) => {
     await users.updateOne({ uid: uid }, { $push: { stories: req.body.story } });
-    res.send("OK");
   });
+  console.log("successfully updated story!");
+  res.send("OK");
 });
 
 app.get("/stories", async (req, res) => {
@@ -277,10 +278,10 @@ app.get("/find", async (req, res) => {
 });
 
 app.get("/clear", async (req, res) => {
-  openMongo((users) => {
-    users.drop();
-    res.send("OK");
+  openMongo(async (users) => {
+    await users.drop();
   });
+  res.send("OK");
 });
 
 app.get("/hello", (req, res) => {

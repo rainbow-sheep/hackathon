@@ -8,6 +8,9 @@
 
 - [Create a new Firebase Project](https://console.firebase.google.com/u/0/?pli=1)
 - [Set up firebase admin](https://firebase.google.com/docs/admin/setup?authuser=0)
+  - Save the json file to this repository under the name `service-account.json`
+
+* You'll also need to enable `Email/Password` as a sign-in method under authentication
 
 ### Start AI service
 

@@ -10,7 +10,6 @@ const app = express();
 const AI_URL = process.env.AI_URL;
 app.use(cors);
 app.use(express.json());
-app.use(validateFirebaseIdToken);
 
 const openMongo = async function (dbcallback) {
   const client = new MongoClient(process.env.MONGO_URL, {
@@ -72,6 +71,8 @@ const validateFirebaseIdToken = async (req, res, next) => {
     return;
   }
 };
+app.use(validateFirebaseIdToken);
+
 app.get("/", (req, res) => res.send("Hello world!"));
 app.post("/test", (req, res) => {
   console.log(req.body);
@@ -290,12 +291,13 @@ app.post("/body", (req, res) => {
   res.send(JSON.stringify(req.body));
 });
 
-console.log("app running on port :9000");
-admin.initializeApp();
+console.log("app running on port 9000 🔥❤️️");
+admin.initializeApp({
+  credential: admin.credential.applicationDefault(),
+});
 /*
 admin.auth().listUsers().then(res => {
     for (let u of res.users) console.log(u.email);
 });
 */
-
 app.listen(9000);

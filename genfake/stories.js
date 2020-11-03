@@ -30,13 +30,14 @@ const fakerator = require("fakerator")();
 var Sentencer = require("sentencer");
 
 async function main() {
+  let uid = (await axios.get(API_URL + "randomuid")).data;
   const uids = (
-    await axios.get(
-      API_URL + "recommendations?uid=BbG04GYxnkTqxl8KXiBysdEjccm2"
-    )
+    await axios.get(API_URL + `recommendations?uid=${uid}`)
   ).data.map((d) => d.uid);
+  console.log("GENERATING FAKE STORIES FOR", uids.length, "USERS");
   for (let uid of uids) {
     console.log(uid);
+
     await axios.post(API_URL + "story?uid=" + uid, {
       story: {
         title: Sentencer.make("{{ an_adjective }} {{ noun }}"),

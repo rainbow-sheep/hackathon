@@ -284,8 +284,12 @@ app.get("/clear", async (req, res) => {
   res.send("OK");
 });
 
-app.get("/hello", (req, res) => {
-  res.send(`Hello ${req.user.name}`);
+app.get("/randomuid", async (req, res) => {
+  openMongo(async (users) => {
+    const uid = await users.aggregate([{ $sample: { size: 1 } }]);
+    const arrUID = await uid.toArray();
+    res.send(arrUID[0].uid);
+  });
 });
 
 app.post("/body", (req, res) => {

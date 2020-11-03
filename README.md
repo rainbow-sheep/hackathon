@@ -13,7 +13,11 @@
 
 Check out the AI repository.
 
-Look at the .env.sample for an example config.
+<br>
+
+Finally, Look at the .env.sample for an example config.
+
+<br>
 
 ## Actual Deployment
 
